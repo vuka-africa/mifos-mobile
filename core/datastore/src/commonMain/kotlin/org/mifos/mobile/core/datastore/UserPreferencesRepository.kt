@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import org.mifos.mobile.core.common.DataState
 import org.mifos.mobile.core.datastore.model.AppSettings
+import org.mifos.mobile.core.datastore.model.OIDCTokens
 import org.mifos.mobile.core.datastore.model.TimeBasedTheme
 import org.mifos.mobile.core.datastore.model.UserData
 import org.mifos.mobile.core.model.LanguageConfig
@@ -76,4 +77,60 @@ interface UserPreferencesRepository {
     suspend fun setLanguage(language: LanguageConfig)
 
     suspend fun logOut(): Unit
+
+    // ==========================================================================
+    // OIDC Token Storage Methods
+    // ==========================================================================
+
+    /**
+     * Observable state of OIDC tokens.
+     * Emits null when not authenticated via OIDC.
+     */
+    val oidcTokens: StateFlow<OIDCTokens?>
+
+    /**
+     * Check if OIDC authentication is enabled.
+     */
+    val isOidcEnabled: StateFlow<Boolean>
+
+    /**
+     * Store OIDC tokens received from authentication.
+     *
+     * @param tokens The OIDC tokens to store
+     */
+    suspend fun storeOidcTokens(tokens: OIDCTokens): DataState<Unit>
+
+    /**
+     * Get the stored OIDC tokens.
+     *
+     * @return The stored tokens, or null if not authenticated via OIDC
+     */
+    suspend fun getOidcTokens(): OIDCTokens?
+
+    /**
+     * Clear stored OIDC tokens (used during logout).
+     */
+    suspend fun clearOidcTokens(): DataState<Unit>
+
+    /**
+     * Check if the stored OIDC access token has expired.
+     *
+     * @return true if the token is expired or not present
+     */
+    suspend fun isOidcTokenExpired(): Boolean
+
+    /**
+     * Set whether OIDC authentication mode is enabled.
+     *
+     * @param enabled true to use OIDC, false to use Basic auth
+     */
+    suspend fun setOidcEnabled(enabled: Boolean): DataState<Unit>
+
+    /**
+     * Get the current valid access token for API calls.
+     * Returns the OIDC access token if OIDC is enabled, or the Basic token otherwise.
+     *
+     * @return The access token, or null if not authenticated
+     */
+    suspend fun getAccessToken(): String?
 }

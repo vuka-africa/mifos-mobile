@@ -33,6 +33,12 @@ kotlin{
             implementation(projects.core.common)
             implementation(projects.core.model)
         }
+
+        // JS-specific dependencies for OIDC
+        jsMain.dependencies {
+            // OIDC client library for Zitadel authentication (web target)
+            implementation(npm("oidc-client-ts", "3.0.1"))
+        }
     }
 }
 

@@ -56,6 +56,13 @@ kotlin {
 
         jsMain.get().dependsOn(jsWasmMain)
         wasmJsMain.get().dependsOn(jsWasmMain)
+
+        // JS-specific dependencies (npm packages)
+        jsMain.get().dependencies {
+            // OIDC client library for Zitadel authentication
+            // Handles popup-based login, token refresh, and PKCE
+            implementation(npm("oidc-client-ts", "3.0.1"))
+        }
     }
 }
 

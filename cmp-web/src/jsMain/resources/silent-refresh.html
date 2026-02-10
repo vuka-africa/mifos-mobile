@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Silent Refresh</title>
+</head>
+<body>
+    <!--
+    OIDC Silent Refresh Handler
+
+    This page is loaded in a hidden iframe by oidc-client-ts to perform
+    token refresh without user interaction. It should be minimal to load quickly.
+    -->
+
+    <script type="module">
+        import { UserManager } from 'oidc-client-ts';
+
+        async function handleSilentCallback() {
+            try {
+                const userManager = new UserManager({
+                    authority: '',
+                    client_id: '',
+                    redirect_uri: window.location.origin + '/silent-refresh.html',
+                    response_mode: 'query'
+                });
+
+                await userManager.signinSilentCallback();
+            } catch (error) {
+                // Silent refresh failures are expected in some cases
+                // (e.g., session expired, third-party cookies blocked)
+                console.debug('Silent refresh callback error:', error);
+            }
+        }
+
+        handleSilentCallback();
+    </script>
+</body>
+</html>

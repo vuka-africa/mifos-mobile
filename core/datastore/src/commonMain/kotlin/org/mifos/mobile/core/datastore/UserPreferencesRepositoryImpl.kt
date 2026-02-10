@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import org.mifos.mobile.core.common.DataState
 import org.mifos.mobile.core.datastore.model.AppSettings
+import org.mifos.mobile.core.datastore.model.OIDCTokens
 import org.mifos.mobile.core.datastore.model.TimeBasedTheme
 import org.mifos.mobile.core.datastore.model.UserData
 import org.mifos.mobile.core.model.LanguageConfig
@@ -189,5 +190,56 @@ class UserPreferencesRepositoryImpl(
 
     override suspend fun logOut() {
         preferenceManager.clearInfo()
+        // Also clear OIDC tokens on logout
+        preferenceManager.clearOidcTokens()
+    }
+
+    // ==========================================================================
+    // OIDC Token Storage Implementation
+    // ==========================================================================
+
+    override val oidcTokens: StateFlow<OIDCTokens?>
+        get() = preferenceManager.oidcTokens
+
+    override val isOidcEnabled: StateFlow<Boolean>
+        get() = preferenceManager.oidcEnabled
+
+    override suspend fun storeOidcTokens(tokens: OIDCTokens): DataState<Unit> {
+        return try {
+            preferenceManager.storeOidcTokens(tokens)
+            DataState.Success(Unit)
+        } catch (e: Exception) {
+            DataState.Error(e)
+        }
+    }
+
+    override suspend fun getOidcTokens(): OIDCTokens? {
+        return preferenceManager.getOidcTokens()
+    }
+
+    override suspend fun clearOidcTokens(): DataState<Unit> {
+        return try {
+            preferenceManager.clearOidcTokens()
+            DataState.Success(Unit)
+        } catch (e: Exception) {
+            DataState.Error(e)
+        }
+    }
+
+    override suspend fun isOidcTokenExpired(): Boolean {
+        return preferenceManager.isOidcTokenExpired()
+    }
+
+    override suspend fun setOidcEnabled(enabled: Boolean): DataState<Unit> {
+        return try {
+            preferenceManager.setOidcEnabled(enabled)
+            DataState.Success(Unit)
+        } catch (e: Exception) {
+            DataState.Error(e)
+        }
+    }
+
+    override suspend fun getAccessToken(): String? {
+        return preferenceManager.getAccessToken()
     }
 }

@@ -24,13 +24,17 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import okio.ByteString.Companion.encodeUtf8
 import org.mifos.mobile.core.datastore.model.AppSettings
+import org.mifos.mobile.core.datastore.model.OIDCTokens
 import org.mifos.mobile.core.datastore.model.TimeBasedTheme
 import org.mifos.mobile.core.datastore.model.UserData
+import org.mifos.mobile.core.datastore.model.currentTimeMillis
 import org.mifos.mobile.core.model.LanguageConfig
 import org.mifos.mobile.core.model.MifosThemeConfig
 
 private const val USER_DATA = "userData"
 private const val APP_SETTINGS = "appSettings"
+private const val OIDC_TOKENS = "oidcTokens"
+private const val OIDC_ENABLED = "oidcEnabled"
 
 class UserPreferencesDataSource(
     private val settings: Settings,
@@ -58,6 +62,22 @@ class UserPreferencesDataSource(
             ) ?: AppSettings.DEFAULT,
         ),
     )
+
+    // OIDC tokens state
+    private val _oidcTokens = MutableStateFlow(
+        settings.decodeValueOrNull(
+            key = OIDC_TOKENS,
+            serializer = OIDCTokens.serializer(),
+        ),
+    )
+
+    // OIDC enabled state
+    private val _oidcEnabled = MutableStateFlow(
+        settings.getBoolean(OIDC_ENABLED, false),
+    )
+
+    val oidcTokens = _oidcTokens
+    val oidcEnabled = _oidcEnabled
 
     val token = _userInfo.map {
         it.base64EncodedAuthenticationKey
@@ -233,6 +253,70 @@ class UserPreferencesDataSource(
             settings.putSettingsPreference(newPreference)
             _settingsInfo.value = newPreference
         }
+
+    // ==========================================================================
+    // OIDC Token Storage Methods
+    // ==========================================================================
+
+    /**
+     * Store OIDC tokens from successful authentication.
+     */
+    suspend fun storeOidcTokens(tokens: OIDCTokens) =
+        withContext(dispatcher) {
+            settings.encodeValue(
+                key = OIDC_TOKENS,
+                serializer = OIDCTokens.serializer(),
+                value = tokens,
+            )
+            _oidcTokens.value = tokens
+        }
+
+    /**
+     * Get stored OIDC tokens.
+     */
+    fun getOidcTokens(): OIDCTokens? = _oidcTokens.value
+
+    /**
+     * Clear OIDC tokens (on logout).
+     */
+    suspend fun clearOidcTokens() =
+        withContext(dispatcher) {
+            settings.remove(OIDC_TOKENS)
+            _oidcTokens.value = null
+        }
+
+    /**
+     * Check if OIDC token is expired.
+     */
+    fun isOidcTokenExpired(): Boolean {
+        val tokens = _oidcTokens.value ?: return true
+        return tokens.isExpired()
+    }
+
+    /**
+     * Set OIDC enabled flag.
+     */
+    suspend fun setOidcEnabled(enabled: Boolean) =
+        withContext(dispatcher) {
+            settings.putBoolean(OIDC_ENABLED, enabled)
+            _oidcEnabled.value = enabled
+        }
+
+    /**
+     * Get OIDC enabled flag.
+     */
+    fun isOidcEnabled(): Boolean = _oidcEnabled.value
+
+    /**
+     * Get the current access token based on auth mode.
+     */
+    fun getAccessToken(): String? {
+        return if (_oidcEnabled.value) {
+            _oidcTokens.value?.accessToken
+        } else {
+            _userInfo.value.base64EncodedAuthenticationKey
+        }
+    }
 
     companion object {
         private const val PROFILE_IMAGE = "preferences_profile_image"

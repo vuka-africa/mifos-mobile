@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Authenticating...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h2 {
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        .error {
+            background: rgba(255, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner" id="spinner"></div>
+        <h2>Completing authentication...</h2>
+        <p>This window will close automatically.</p>
+        <div class="error" id="error"></div>
+    </div>
+
+    <script type="module">
+        // OIDC Popup Callback Handler
+        // This script runs in the popup window opened by oidc-client-ts
+        // It completes the authentication flow and passes tokens back to the parent window
+
+        import { UserManager } from 'oidc-client-ts';
+
+        async function handleCallback() {
+            try {
+                // Create a minimal UserManager just for callback handling
+                const userManager = new UserManager({
+                    authority: '', // Will be determined from the callback URL
+                    client_id: '', // Not needed for callback
+                    redirect_uri: window.location.origin + '/popup-callback.html',
+                    response_mode: 'query'
+                });
+
+                // Process the callback - this extracts the authorization code,
+                // exchanges it for tokens, and communicates back to the parent window
+                await userManager.signinPopupCallback();
+
+                // The popup will be closed automatically by oidc-client-ts
+                // after successful token exchange
+
+            } catch (error) {
+                console.error('OIDC popup callback error:', error);
+
+                // Show error to user
+                const errorDiv = document.getElementById('error');
+                const spinner = document.getElementById('spinner');
+
+                if (spinner) spinner.style.display = 'none';
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = error.message || 'Authentication failed. Please try again.';
+                }
+
+                // Close popup after showing error briefly
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+            }
+        }
+
+        // Run callback handler when page loads
+        handleCallback();
+    </script>
+</body>
+</html>
