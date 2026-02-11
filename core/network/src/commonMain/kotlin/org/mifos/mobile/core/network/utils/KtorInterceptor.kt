@@ -16,7 +16,6 @@ import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponsePipeline
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.AttributeKey
-import kotlinx.coroutines.runBlocking
 import org.mifos.mobile.core.datastore.UserPreferencesRepository
 
 class KtorInterceptor(
@@ -127,14 +126,17 @@ enum class AuthMode {
  * When using BEARER mode with Zitadel OIDC, the JWT contains claims that can be
  * used to extract tenant information for multi-tenant deployments.
  *
- * @param getAccessToken Lambda that returns the current OIDC access token (for Bearer mode)
+ * Note: getAccessToken should return a cached token value. Token refresh should be
+ * handled separately (e.g., by OIDCService with automatic silent refresh).
+ *
+ * @param getAccessToken Lambda that returns the current cached OIDC access token
  * @param getBasicToken Lambda that returns the Basic auth token (for Basic mode, fallback)
  * @param authMode The authentication mode to use
  * @param getTenant Lambda that returns the tenant identifier
  * @param onUnauthorized Callback invoked when a 401 response is received
  */
 class KtorOidcInterceptor(
-    private val getAccessToken: suspend () -> String?,
+    private val getAccessToken: () -> String?,
     private val getBasicToken: () -> String?,
     private val authMode: () -> AuthMode,
     private val getTenant: () -> String,
@@ -160,12 +162,8 @@ class KtorOidcInterceptor(
                 // Set authentication header based on mode
                 when (plugin.authMode()) {
                     AuthMode.BEARER -> {
-                        // Use OIDC JWT access token
-                        // Note: This is a suspend lambda, but we can't suspend in interceptor
-                        // The caller should ensure the token is pre-fetched
-                        val token = kotlinx.coroutines.runBlocking {
-                            plugin.getAccessToken()
-                        }
+                        // Use OIDC JWT access token (cached value from OIDCService)
+                        val token = plugin.getAccessToken()
                         if (!token.isNullOrEmpty()) {
                             context.headers[HEADER_AUTH] = "Bearer $token"
                         }
@@ -210,8 +208,8 @@ class KtorOidcInterceptor(
  * Configuration for KtorOidcInterceptor.
  */
 class OidcConfig {
-    /** Lambda to get the OIDC access token for Bearer authentication */
-    var getAccessToken: suspend () -> String? = { null }
+    /** Lambda to get the cached OIDC access token for Bearer authentication */
+    var getAccessToken: () -> String? = { null }
 
     /** Lambda to get the Basic auth token (fallback) */
     var getBasicToken: () -> String? = { null }

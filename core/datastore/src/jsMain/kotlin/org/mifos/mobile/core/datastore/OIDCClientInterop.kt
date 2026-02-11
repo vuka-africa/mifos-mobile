@@ -146,30 +146,3 @@ external interface UserProfile {
     val email_verified: Boolean?
     val preferred_username: String?
 }
-
-/**
- * Helper function to create UserManagerSettings object.
- */
-fun createUserManagerSettings(
-    authority: String,
-    clientId: String,
-    redirectUri: String,
-    popupRedirectUri: String?,
-    silentRedirectUri: String?,
-    postLogoutRedirectUri: String?,
-    scope: String,
-): UserManagerSettings {
-    val settings: UserManagerSettings = js("({})").unsafeCast<UserManagerSettings>()
-    settings.authority = authority
-    settings.client_id = clientId
-    settings.redirect_uri = redirectUri
-    settings.popup_redirect_uri = popupRedirectUri
-    settings.silent_redirect_uri = silentRedirectUri
-    settings.post_logout_redirect_uri = postLogoutRedirectUri
-    settings.response_type = "code"
-    settings.scope = scope
-    settings.automaticSilentRenew = true
-    settings.includeIdTokenInSilentRenew = true
-    settings.loadUserInfo = true
-    return settings
-}
