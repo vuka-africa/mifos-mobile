@@ -185,8 +185,17 @@ class OIDCServiceJs(
 
 /**
  * Extension function to convert oidc-client-ts User to our OIDCTokens model.
+ * Extracts tenant and fineract_client_id from user profile claims.
  */
 private fun User.toOIDCTokens(): OIDCTokens {
+    val tenant = extractTenant()
+    val fineractClientId = extractFineractClientId()
+
+    console.log("OIDC: Extracted tenant from JWT: $tenant")
+    if (fineractClientId != null) {
+        console.log("OIDC: Extracted fineract_client_id from JWT: $fineractClientId")
+    }
+
     return OIDCTokens(
         accessToken = access_token,
         refreshToken = refresh_token,
@@ -194,7 +203,56 @@ private fun User.toOIDCTokens(): OIDCTokens {
         expiresAt = expires_at?.toLong() ?: 0L,
         tokenType = token_type,
         scope = scope,
+        tenant = tenant,
+        fineractClientId = fineractClientId,
     )
+}
+
+/**
+ * Extract tenant from user profile claims.
+ * The tenant claim is set by the Zitadel addTenantClaim action.
+ */
+private fun User.extractTenant(): String {
+    val p = profile.asDynamic()
+
+    // Debug: log profile
+    console.log("OIDC: Profile keys:", js("Object.keys(p)"))
+
+    // 1. Explicit tenant claim (set by Zitadel addTenantClaim action)
+    val tenant = p.tenant
+    if (tenant != null && tenant != undefined) {
+        console.log("OIDC: Found tenant claim:", tenant)
+        return tenant.toString()
+    }
+
+    // 2. Fallback to org name
+    val orgName = p["urn:zitadel:iam:user:resourceowner:name"]
+    if (orgName != null && orgName != undefined) {
+        val normalized = orgName.toString().replace(Regex("[^a-zA-Z0-9]"), "").lowercase()
+        console.log("OIDC: Using org name as tenant:", orgName, "->", normalized)
+        return normalized
+    }
+
+    // 3. Fallback
+    console.log("OIDC: No tenant found, using default")
+    return "default"
+}
+
+/**
+ * Extract Fineract client ID from user profile claims.
+ */
+private fun User.extractFineractClientId(): String? {
+    val p = profile.asDynamic()
+
+    // 1. Explicit fineract_client_id claim
+    val clientId = p.fineract_client_id
+    if (clientId != null && clientId != undefined) return clientId.toString()
+
+    // 2. Zitadel user metadata
+    val metaClientId = p["urn:zitadel:iam:user:metadata:x:fineract_client_id"]
+    if (metaClientId != null && metaClientId != undefined) return metaClientId.toString()
+
+    return null
 }
 
 /**

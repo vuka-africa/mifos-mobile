@@ -39,6 +39,12 @@ kotlin{
             // OIDC client library for Zitadel authentication (web target)
             implementation(npm("oidc-client-ts", "3.0.1"))
         }
+
+        // WASM/JS-specific dependencies for OIDC
+        wasmJsMain.dependencies {
+            // OIDC client library for Zitadel authentication (wasm web target)
+            implementation(npm("oidc-client-ts", "3.0.1"))
+        }
     }
 }
 

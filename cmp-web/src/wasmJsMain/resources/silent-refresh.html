@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Silent Refresh</title>
+</head>
+<body>
+    <script type="module">
+        // Import oidc-client-ts from CDN
+        import { UserManager } from 'https://cdn.jsdelivr.net/npm/oidc-client-ts@3.1.0/+esm';
+
+        // Handle the silent token refresh callback
+        try {
+            const userManager = new UserManager({ response_mode: 'query' });
+            await userManager.signinSilentCallback();
+            console.log('[OIDC] Silent refresh completed successfully');
+        } catch (err) {
+            console.error('[OIDC] Silent refresh error:', err);
+        }
+    </script>
+</body>
+</html>

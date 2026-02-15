@@ -13,6 +13,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import mifos_mobile.feature.auth.generated.resources.Res
@@ -20,6 +21,7 @@ import mifos_mobile.feature.auth.generated.resources.feature_sign_in_password_er
 import mifos_mobile.feature.auth.generated.resources.feature_sign_in_username_error
 import org.jetbrains.compose.resources.StringResource
 import org.mifos.mobile.core.common.DataState
+import org.mifos.mobile.core.data.repository.ClientRepository
 import org.mifos.mobile.core.data.repository.UserAuthRepository
 import org.mifos.mobile.core.datastore.OIDCException
 import org.mifos.mobile.core.datastore.OIDCService
@@ -32,8 +34,9 @@ import org.mifos.mobile.core.ui.utils.ScreenUiState
 class LoginViewModel(
     private val userAuthRepositoryImpl: UserAuthRepository,
     private val userPreferencesRepositoryImpl: UserPreferencesRepository,
-    private val oidcService: OIDCService? = null, // Optional - null when OIDC not configured
+    private val clientRepository: ClientRepository,
     savedStateHandle: SavedStateHandle,
+    private val oidcService: OIDCService? = null,
 ) : BaseViewModel<LoginState, LoginEvent, LoginAction>(
     initialState = LoginState(
         uiState = ScreenUiState.Success,
@@ -48,43 +51,8 @@ class LoginViewModel(
             trySendAction(LoginAction.UsernameChanged(it))
         }
 
-        // Check if OIDC is available
+        // Check if OIDC is available on this platform
         updateState { it.copy(isOidcAvailable = oidcService != null) }
-
-        // Try silent OIDC login if service is available
-        if (oidcService != null) {
-            viewModelScope.launch {
-                trySilentOidcLogin()
-            }
-        }
-    }
-
-    /**
-     * Attempt silent OIDC login using stored tokens or session.
-     */
-    private suspend fun trySilentOidcLogin() {
-        if (oidcService == null) return
-
-        try {
-            if (oidcService.isAuthenticated()) {
-                // Already authenticated, navigate to main screen
-                userPreferencesRepositoryImpl.setIsAuthenticated(true)
-                userPreferencesRepositoryImpl.setOidcEnabled(true)
-                sendEvent(LoginEvent.NavigateToPasscode)
-            } else {
-                // Try silent refresh
-                val tokens = oidcService.silentLogin()
-                if (tokens != null) {
-                    userPreferencesRepositoryImpl.storeOidcTokens(tokens)
-                    userPreferencesRepositoryImpl.setIsAuthenticated(true)
-                    userPreferencesRepositoryImpl.setOidcEnabled(true)
-                    sendEvent(LoginEvent.NavigateToPasscode)
-                }
-            }
-        } catch (e: Exception) {
-            // Silent login failed - user needs to login manually
-            // This is expected if not previously authenticated
-        }
     }
 
     private fun updateState(update: (LoginState) -> LoginState) {
@@ -211,19 +179,47 @@ class LoginViewModel(
             }
 
             is DataState.Success -> {
-                updateState {
-                    it.copy(
-                        showOverlay = false,
-                        isOidcLoginInProgress = false,
-                    )
-                }
-
+                // After OIDC login, fetch client ID from /self/clients BEFORE navigating
                 viewModelScope.launch {
                     userPreferencesRepositoryImpl.setIsAuthenticated(true)
-                }
 
-                // Navigate to main screen (skip passcode for OIDC users)
-                sendEvent(LoginEvent.NavigateToPasscode)
+                    // Fetch client ID from /self/clients API - MUST complete before navigation
+                    var clientFetchSuccess = false
+                    try {
+                        val clientResult = clientRepository.loadClient().first()
+                        if (clientResult is DataState.Success) {
+                            val clients = clientResult.data.pageItems
+                            if (clients.isNotEmpty()) {
+                                val clientId = clients.first().id.toLong()
+                                userPreferencesRepositoryImpl.updateClientId(clientId)
+                                clientFetchSuccess = true
+                            }
+                        }
+                    } catch (e: Exception) {
+                        println("Failed to fetch client ID after OIDC login: ${e.message}")
+                    }
+
+                    updateState {
+                        it.copy(
+                            showOverlay = false,
+                            isOidcLoginInProgress = false,
+                        )
+                    }
+
+                    if (clientFetchSuccess) {
+                        // Navigate to main screen (skip passcode for OIDC users)
+                        sendEvent(LoginEvent.NavigateToPasscode)
+                    } else {
+                        // Show error if we couldn't fetch client ID
+                        updateState {
+                            it.copy(
+                                dialogState = LoginState.DialogState.Error(
+                                    "Failed to load client data. Please try again.",
+                                ),
+                            )
+                        }
+                    }
+                }
             }
         }
     }

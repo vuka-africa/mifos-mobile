@@ -304,6 +304,23 @@ fun InputBox(
             )
         }
 
+        // OIDC Login Button - only shown when OIDC is available
+        if (state.isOidcAvailable) {
+            MifosButton(
+                modifier = Modifier.fillMaxWidth().height(DesignToken.sizes.inputHeight),
+                enabled = state.isOidcLoginButtonEnabled,
+                onClick = {
+                    onAction(LoginAction.OidcLoginClicked)
+                },
+                shape = KptTheme.shapes.medium,
+            ) {
+                Text(
+                    text = "Sign in with Zitadel",
+                    style = MifosTypography.titleMedium,
+                )
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,

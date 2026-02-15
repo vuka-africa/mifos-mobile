@@ -36,6 +36,10 @@ data class OIDCTokens(
     val tokenType: String = "Bearer",
     @SerialName("scope")
     val scope: String? = null,
+    @SerialName("tenant")
+    val tenant: String = "default",
+    @SerialName("fineract_client_id")
+    val fineractClientId: String? = null,
 ) {
     /**
      * Check if the access token has expired.

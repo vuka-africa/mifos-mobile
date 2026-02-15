@@ -13,9 +13,11 @@ import com.russhwolf.settings.Settings
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.mifos.mobile.core.common.MifosDispatchers
+import org.mifos.mobile.core.datastore.OIDCService
 import org.mifos.mobile.core.datastore.UserPreferencesDataSource
 import org.mifos.mobile.core.datastore.UserPreferencesRepository
 import org.mifos.mobile.core.datastore.UserPreferencesRepositoryImpl
+import org.mifos.mobile.core.datastore.model.OIDCConfiguration
 
 val PreferencesModule = module {
     factory<Settings> { Settings() }
@@ -33,5 +35,15 @@ val PreferencesModule = module {
 //            ioDispatcher = get(named(MifosDispatchers.IO.name)),
             unconfinedDispatcher = get(named(MifosDispatchers.Unconfined.name)),
         )
+    }
+
+    // OIDC Configuration - can be customized via environment/build config
+    single<OIDCConfiguration> {
+        provideOIDCConfiguration()
+    }
+
+    // OIDC Service - platform-specific implementation (nullable for unsupported platforms)
+    single<OIDCService?> {
+        provideOIDCService(get())
     }
 }

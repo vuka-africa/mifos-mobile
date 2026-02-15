@@ -34,7 +34,7 @@ data class AppSettings(
         val DEFAULT = AppSettings(
             userId = "",
             tenant = "default",
-            baseUrl = "https://tt.mifos.community/",
+            baseUrl = "https://core-api.sandbox.neobnk.tech/",
             appTheme = MifosThemeConfig.FOLLOW_SYSTEM,
             sentTokenToServer = false,
             gcmToken = null,

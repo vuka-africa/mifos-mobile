@@ -13,6 +13,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -21,6 +22,7 @@ import mifos_mobile.feature.home.generated.resources.feature_server_error
 import org.jetbrains.compose.resources.StringResource
 import org.mifos.mobile.core.common.CurrencyFormatter
 import org.mifos.mobile.core.common.DataState
+import org.mifos.mobile.core.data.repository.ClientRepository
 import org.mifos.mobile.core.data.repository.HomeRepository
 import org.mifos.mobile.core.data.util.NetworkMonitor
 import org.mifos.mobile.core.datastore.UserPreferencesRepository
@@ -45,11 +47,12 @@ import org.mifos.mobile.core.ui.utils.BaseViewModel
 internal class HomeViewModel(
     private val homeRepositoryImpl: HomeRepository,
     private val networkMonitor: NetworkMonitor,
-    userPreferencesRepositoryImpl: UserPreferencesRepository,
+    private val userPreferencesRepositoryImpl: UserPreferencesRepository,
+    private val clientRepository: ClientRepository,
 ) : BaseViewModel<HomeState, HomeEvent, HomeAction>(
     initialState = HomeState(
-        clientId = requireNotNull(userPreferencesRepositoryImpl.clientId.value),
-        username = requireNotNull(userPreferencesRepositoryImpl.userInfo.value.userName),
+        clientId = userPreferencesRepositoryImpl.clientId.value ?: -1L,
+        username = userPreferencesRepositoryImpl.userInfo.value.userName,
         items = serviceCards,
         uiState = HomeScreenState.Loading,
     ),
@@ -59,6 +62,36 @@ internal class HomeViewModel(
 
     init {
         observeNetworkStatus()
+        // If clientId is invalid (-1 or null), fetch it from /self/clients
+        if ((state.clientId ?: -1L) <= 0L) {
+            fetchClientIdFromSelfApi()
+        }
+    }
+
+    /**
+     * Fetches the client ID from /self/clients API.
+     * This is needed for OIDC users where clientId isn't available at login time.
+     */
+    private fun fetchClientIdFromSelfApi() {
+        viewModelScope.launch {
+            clientRepository.loadClient()
+                .catch { e ->
+                    println("Failed to fetch client from /self/clients: ${e.message}")
+                }
+                .collect { result ->
+                    if (result is DataState.Success) {
+                        val clients = result.data.pageItems
+                        if (clients.isNotEmpty()) {
+                            val clientId = clients.first().id.toLong()
+                            userPreferencesRepositoryImpl.updateClientId(clientId)
+                            updateState { it.copy(clientId = clientId) }
+                            // Now fetch client details with the correct ID
+                            fetchCurrentClient()
+                            loadClientAccountDetails()
+                        }
+                    }
+                }
+        }
     }
 
     /**

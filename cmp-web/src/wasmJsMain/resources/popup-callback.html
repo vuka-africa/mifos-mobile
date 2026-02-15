@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completing authentication...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e0e0e0;
+            border-top: 3px solid #1976d2;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        p {
+            color: #666;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <p>Completing authentication...</p>
+    </div>
+    <script type="module">
+        // Import oidc-client-ts from CDN
+        import { UserManager } from 'https://cdn.jsdelivr.net/npm/oidc-client-ts@3.1.0/+esm';
+
+        // Handle the popup callback from Zitadel OIDC login
+        try {
+            const userManager = new UserManager({ response_mode: 'query' });
+            await userManager.signinPopupCallback();
+            console.log('[OIDC] Popup callback completed successfully');
+        } catch (err) {
+            console.error('[OIDC] Popup callback error:', err);
+        }
+    </script>
+</body>
+</html>

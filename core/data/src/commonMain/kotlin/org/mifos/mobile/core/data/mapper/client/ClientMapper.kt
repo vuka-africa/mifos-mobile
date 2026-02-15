@@ -77,7 +77,7 @@ fun TimelineResponseDto.toModel(): Timeline =
 
 fun ClientClassificationResponseDto.toModel(): ClientClassification =
     ClientClassification(
-        id = id,
+        id = id ?: 0,
         name = name,
         active = active ?: false,
         mandatory = mandatory ?: false,
@@ -85,7 +85,7 @@ fun ClientClassificationResponseDto.toModel(): ClientClassification =
 
 fun ClientTypeResponseDto.toModel(): ClientType =
     ClientType(
-        id = id,
+        id = id ?: 0,
         name = name,
         active = active ?: false,
         mandatory = mandatory ?: false,
@@ -93,7 +93,7 @@ fun ClientTypeResponseDto.toModel(): ClientType =
 
 fun GenderResponseDto.toModel(): Gender =
     Gender(
-        id = id,
+        id = id ?: 0,
         name = name,
         active = active ?: false,
         mandatory = mandatory ?: false,
